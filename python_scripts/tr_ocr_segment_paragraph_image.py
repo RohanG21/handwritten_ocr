@@ -81,6 +81,7 @@ def read_page(path, batch_size=8):
 
 path = Path("handwritten_ocr/sample_after_visit_paragraph.jpg")
 text, line_imgs = read_page(path)
+print("Output:")
 print("\n".join(text))
 
 # Debugging: save the crops so you can see what the segmenter produced
