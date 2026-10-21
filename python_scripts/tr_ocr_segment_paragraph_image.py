@@ -79,7 +79,7 @@ def read_page(path, batch_size=8):
         out += processor.batch_decode(ids, skip_special_tokens=True)
     return out, lines
 
-path = Path("sample_after_visit_paragraph.jpg")
+path = Path("/content/handwritten_ocr/sample_after_visit_paragraph.jpg")
 text, line_imgs = read_page(path)
 print("\n".join(text))
 
