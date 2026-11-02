@@ -86,4 +86,4 @@ print("\n".join(text))
 
 # Debugging: save the crops so you can see what the segmenter produced
 for i, im in enumerate(line_imgs):
-    im.save(f"p{001}_line_{i:02d}.png")
+    im.save(f"p001_line_{i:02d}.png")
