@@ -86,6 +86,11 @@ print("\n".join(text))
 
 train_img_dir = Path("handwritten_ocr/train/images")
 train_img_dir.mkdir(parents=True, exist_ok=True)
+
+val_img_dir = Path("handwritten_ocr/val/images")
+val_img_dir.mkdir(parents=True, exist_ok=True)
 # Debugging: save the crops so you can see what the segmenter produced
 for i, im in enumerate(line_imgs):
     im.save(train_img_dir/f"p001_line_{i:02d}.png")
+    im.save(val_img_dir/f"p001_line_{i:02d}.png")
+    
