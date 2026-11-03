@@ -4,7 +4,7 @@ from transformers import (TrOCRProcessor, VisionEncoderDecoderModel,
                           Seq2SeqTrainer, Seq2SeqTrainingArguments,
                           default_data_collator)
 
-import convert_json_content_to_tuple 
+from convert_jsonl_content_to_tuple import convert_jsonl_content_to_tuple 
 
 CKPT = "microsoft/trocr-base-handwritten"
 processor = TrOCRProcessor.from_pretrained(CKPT)
@@ -42,14 +42,14 @@ def metrics(p):
 args = Seq2SeqTrainingArguments(
     output_dir="trocr-ft", predict_with_generate=True,
     per_device_train_batch_size=8, per_device_eval_batch_size=8,
-    learning_rate=2e-5, num_train_epochs=15, warmup_ratio=0.05,
-    eval_strategy="no", save_strategy="epoch", load_best_model_at_end=True,
+    learning_rate=2e-5, num_train_epochs=15, eval_strategy="epoch", save_strategy="epoch", load_best_model_at_end=True,
     metric_for_best_model="cer", greater_is_better=False, fp16=True)
 
-train_rows = convert_json_content_to_tuple("handwritten_ocr/train.json")
+train_rows = convert_json_content_to_tuple("handwritten_ocr/train.jsonl")
 train_dataset = LineDS(train_rows,"handwritten_ocr/train/images",len(train_rows))
-
+eval_rows = convert_json_content_to_tuple("handwritten_ocr/val.jsonl")
+eval_dataset = LineDS(eval_rows, "handwritten_ocr/val/images", len(eval_rows))
 trainer = Seq2SeqTrainer(model=model, args=args, train_dataset=train_dataset,
-                         eval_dataset=None, compute_metrics=metrics,
+                         eval_dataset=eval_dataset, compute_metrics=metrics,
                          data_collator=default_data_collator)
 trainer.train()
