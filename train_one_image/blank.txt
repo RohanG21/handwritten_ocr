@@ -1,0 +1,1 @@
+This folder contains all of the files required to train one image for TrOCR handwritten regular size model
