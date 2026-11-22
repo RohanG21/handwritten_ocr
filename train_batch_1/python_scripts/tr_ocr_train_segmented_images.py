@@ -5,7 +5,7 @@ from transformers import (TrOCRProcessor, VisionEncoderDecoderModel,
                           default_data_collator)
 
 from convert_jsonl_content_to_tuple import convert_jsonl_content_to_tuple 
-
+import file_manipulations
 CKPT = "microsoft/trocr-small-handwritten"
 processor = TrOCRProcessor.from_pretrained(CKPT)
 model = VisionEncoderDecoderModel.from_pretrained(CKPT)
@@ -41,15 +41,27 @@ def metrics(p):
 
 args = Seq2SeqTrainingArguments(
     output_dir="trocr-ft", predict_with_generate=True,
-    per_device_train_batch_size=8, per_device_eval_batch_size=8,logging_strategy="steps", logging_steps=10,
-    learning_rate=2e-5, num_train_epochs=3, eval_strategy="epoch", save_strategy="epoch", load_best_model_at_end=True,warmup_steps = 0.05
+    per_device_train_batch_size=8, per_device_eval_batch_size=8,
+    learning_rate=2e-5, num_train_epochs=3,warmup_steps=0.05,logging_strategy="steps",logging_steps=10,eval_strategy="epoch", save_strategy="epoch", load_best_model_at_end=True,
     metric_for_best_model="cer", greater_is_better=False, fp16=False)
 
-train_rows = convert_json_content_to_tuple("syn_scans_batch_1/train/train.jsonl")
-train_dataset = LineDS(train_rows,"syn_scans_batch_1/train/images",len(train_rows))
-eval_rows = convert_json_content_to_tuple("syn_scans_batch_1/val/val.jsonl")
-eval_dataset = LineDS(eval_rows, "syn_scans_batch_1/val/images", len(eval_rows))
-trainer = Seq2SeqTrainer(model=model, args=args, train_dataset=train_dataset,
+percentages = [0.25,0.50,1.0]
+n = 270
+for p in percentages:
+    num = Math.round(p*n)
+    file_manipulations.clear_folder("current_samples_folder")
+    file_manipulations.copy_first_n_percent_files("syn_scans_batch_1/train/images","current_samples_folder/train/images",num)
+    file_manipulations.copy_first_n_percent_files("syn_scans_batch_1/val/images","current_samples_folder/val/images",num)
+    file_manipulations.delete_n_file_lines("current_samples_folder/train/train.jsonl")
+    file_manipulations.delete_n_file_lines("current_samples_folder/val/val.jsonl") 
+    file_manipulations.copy_n_file_lines("syn_scans_batch_1/train/train.jsonl","current_samples_folder/train/train.jsonl",num) 
+    file_manipulations.copy_n_file_lines("syn_scans_batch_1/val/val.jsonl","current_samples_folder/val/val.jsonl",num)
+
+    train_rows = convert_json_content_to_tuple("current_samples_folder/train/train.jsonl")
+    train_dataset = LineDS(train_rows,"current_samples_folder/train/images",len(train_rows))
+    eval_rows = convert_json_content_to_tuple("current_samples_folder/val/val.jsonl")
+    eval_dataset = LineDS(eval_rows, "current_samples_folder/val/images", len(eval_rows))
+    trainer = Seq2SeqTrainer(model=model, args=args, train_dataset=train_dataset,
                          eval_dataset=eval_dataset, compute_metrics=metrics,
                          data_collator=default_data_collator)
-trainer.train()
+    trainer.train()
