@@ -4,7 +4,8 @@ from itertools import islice
 from pathlib import Path
 
 def clear_folder(folder):
-    folder = Path(folder)
+    folder_val = Path(folder)
+    folder_val.mkdir(parents=True,exist_ok=True)
     
     for item in folder.iterdir():
         if item.is_dir() and not item.is_symlink():
@@ -37,7 +38,8 @@ def copy_n_file_lines(source,dest,n):
 
 
 def delete_n_file_lines(file,n):
-    source_file = Path(file)
+    if not isinstance(file,Path):
+        return
 
     with open(source_file, "w", encoding="utf-8") as src:
         for line in islice(src, n, None):   # skip the first n lines

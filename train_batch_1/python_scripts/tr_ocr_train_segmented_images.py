@@ -5,7 +5,12 @@ from transformers import (TrOCRProcessor, VisionEncoderDecoderModel,
                           default_data_collator)
 
 from convert_jsonl_content_to_tuple import convert_jsonl_content_to_tuple 
+from pathlib import Path
+import json,glob,re,os
+import pandas as pd
+import matplotlib.pyplot as plt
 import file_manipulations
+
 CKPT = "microsoft/trocr-small-handwritten"
 processor = TrOCRProcessor.from_pretrained(CKPT)
 model = VisionEncoderDecoderModel.from_pretrained(CKPT)
@@ -47,21 +52,61 @@ args = Seq2SeqTrainingArguments(
 
 percentages = [0.25,0.50,1.0]
 n = 270
+folder_val = Path("current_samples_folder")
+folder_val_mkdir(parents=True,exist_ok=True)
+root = "trocr-ft"
+
 for p in percentages:
-    num = Math.round(p*n)
+    summary = []
+    num = round(p*n)
     file_manipulations.clear_folder("current_samples_folder")
     file_manipulations.copy_first_n_percent_files("syn_scans_batch_1/train/images","current_samples_folder/train/images",num)
     file_manipulations.copy_first_n_percent_files("syn_scans_batch_1/val/images","current_samples_folder/val/images",num)
-    file_manipulations.delete_n_file_lines("current_samples_folder/train/train.jsonl")
-    file_manipulations.delete_n_file_lines("current_samples_folder/val/val.jsonl") 
     file_manipulations.copy_n_file_lines("syn_scans_batch_1/train/train.jsonl","current_samples_folder/train/train.jsonl",num) 
     file_manipulations.copy_n_file_lines("syn_scans_batch_1/val/val.jsonl","current_samples_folder/val/val.jsonl",num)
+    file_manipulations.delete_n_file_lines("current_samples_folder/train/train.jsonl",num)
+    file_manipulations.delete_n_file_lines("current_samples_folder/val/val.jsonl",num)
 
-    train_rows = convert_json_content_to_tuple("current_samples_folder/train/train.jsonl")
+    train_rows = convert_jsonl_content_to_tuple("current_samples_folder/train/train.jsonl")
     train_dataset = LineDS(train_rows,"current_samples_folder/train/images",len(train_rows))
-    eval_rows = convert_json_content_to_tuple("current_samples_folder/val/val.jsonl")
+    eval_rows = convert_jsonl_content_to_tuple("current_samples_folder/val/val.jsonl")
     eval_dataset = LineDS(eval_rows, "current_samples_folder/val/images", len(eval_rows))
     trainer = Seq2SeqTrainer(model=model, args=args, train_dataset=train_dataset,
                          eval_dataset=eval_dataset, compute_metrics=metrics,
                          data_collator=default_data_collator)
     trainer.train()
+
+    for path in glob.glob(os.path.join(root,"checkpoint-*", "trainer_state.json")):
+        with open(path) as f:
+            s = json.load(f)
+        ckpt_step = int(re.search(r"checkpoint-(-\d+)", path).group(1))
+        summary.append({
+            "checkpoint": ckpt_step,
+            "global_step": s["global_step"],
+            "epoch": s["epoch"],
+            "best_metric": s.get("best_metric"),
+            "best_model_checkpoint": s.get("best_model_checkpoint"),
+        })
+    summary = pd.DataFrame(summary).sort_values("checkpoint")
+    print(summary)
+
+    latest = max(glob.glob(os.path.join(root, "checkpoint-*")),
+        key = lambda p: int(p.split("-")[-1]))
+    with open(os.path.join(latest, "trainer_state.json")) as f:
+        log = pd.DataFrame(json.load(f)["log_history"])
+    train_log = log[log["loss"].notna()] if "loss" in log else pd.DataFrame()
+    eval_log = log[log["eval_loss"].notna()] if "eval_loss" in log else pd.DataFrame()
+    print(eval_log[["step", "epoch", "eval_loss", "eval_cer"]])
+   
+    fig, ax = plt.subplots(1, 2, figsize=(12, 4))
+   
+    ax[0].plot(train_log["step"], train_log["loss"], label="train_loss")
+    ax[0].plot(eval_log["step"], eval_log["eval_loss"], marker = "o", label="eval loss")
+    ax[0].set_xlabel("step"); ax[0].legend(); ax[0].set_title("Loss")
+
+    ax[1].plot(eval_log["step"], eval_log["eval_cer"], marker = "o")
+    ax[1].set_xlabel("step"); ax[1].set_title("Eval CER")
+
+    plt.tight_layout(); plt.show()
+
+    
