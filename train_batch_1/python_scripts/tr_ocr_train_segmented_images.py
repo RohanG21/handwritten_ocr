@@ -52,8 +52,6 @@ args = Seq2SeqTrainingArguments(
 
 percentages = [0.25,0.50,1.0]
 n = 270
-folder_val = Path("current_samples_folder")
-folder_val_mkdir(parents=True,exist_ok=True)
 root = "trocr-ft"
 
 for p in percentages:
@@ -79,7 +77,7 @@ for p in percentages:
     for path in glob.glob(os.path.join(root,"checkpoint-*", "trainer_state.json")):
         with open(path) as f:
             s = json.load(f)
-        ckpt_step = int(re.search(r"checkpoint-(-\d+)", path).group(1))
+        ckpt_step = int(re.search(r"checkpoint-(\d+)", path).group(1))
         summary.append({
             "checkpoint": ckpt_step,
             "global_step": s["global_step"],
